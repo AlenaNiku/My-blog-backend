@@ -1,21 +1,6 @@
 import express from 'express';
 import bodyParser from 'body-parser';
-
-// this is our fake database which is just a json object
-const articlesInfo = {
-  "learn-react": {
-    upvotes: 0,
-    comments: [],
-  },
-  "learn-node": {
-    upvotes: 0,
-    comments: [],
-  },
-  "my-thoughts-on-resumes": {
-    upvotes: 0,
-    comments: [],
-  },
-};
+import { MongoClient } from 'mongodb'; // allows us to connect to the local database
 
 
 const app = express(); 
@@ -28,12 +13,56 @@ app.use(bodyParser.json());
 // app.get('/hello/:name', (req, res) => res.send(`Hello ${req.params.name}`))
 // app.post('/hello', (req, res) => res.send(`Hello ${req.body.name}!`));
 
-app.post('/api/articles/:name/upvote', (req, res) => {
-    const articleName = req.params.name;
+app.get('/api/articles/:name', async (req, res) => {
+    try {
+        const articleName = req.params.name;
+    
+        const client = await MongoClient.connect('mongodb://localhost:27017', { useNewUrlParser: true }); // this connect function is asynchornous (returns a promise) -will return a client object that we can use to send queries to database
+        const db = client.db('my-blog');
+    
+        const articleInfo = await db.collection('articles').findOne({ name: articleName});
+        res.status(200).json(articleInfo);
+    
+        client.close(); // closes our connection to the database
+    } catch (error) {
+        res.status(500).json({ message: 'Error connecting to db', error });
+    }
 
-    articlesInfo[articleName].upvotes += 1;
-    res.status(200).send(`${articleName} now has ${articlesInfo[articleName].upvotes} upvotes!`)
-});
+})
+
+app.post('/api/articles/:name/upvote', async (req, res) => {
+    try {
+      const articleName = req.params.name;
+
+      const client = await MongoClient.connect("mongodb://localhost:27017", {
+        useNewUrlParser: true,
+      });
+      const db = client.db("my-blog");
+
+      const articleInfo = await db
+        .collection("articles")
+        .findOne({ name: articleName });
+      await db.collection("articles").updateOne(
+        { name: articleName },
+        {
+          $set: {
+            upvotes: articleInfo.upvotes + 1,
+          },
+        }
+      );
+      const updatedArticleInfo = await db
+        .collection("articles")
+        .findOne({ name: articleName });
+
+      res.status(200).json(updatedArticleInfo);
+
+      client.close();
+    } catch (error) {
+      res.status(500).json({ message: "Error connecting to db", error });
+    }
+});    
+
+
 
 app.post('/api/articles/:name/add-comment', (req, res) => {
     const { username, text } = req.body;
