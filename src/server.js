@@ -1,11 +1,13 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import { MongoClient } from 'mongodb'; // allows us to connect to the local database
+import path from 'path';
 
 
 const app = express(); 
 // once we have the app created that way we can define the end-points and what do we want to do once we hit one of those end points
 
+app.use(express.static(path.join(__dirname, '/build')));
 app.use(bodyParser.json());
 // this will parse the JSON object that we included in the body of our POST request and it adds a body property to the request parameter of whatever the matching route is
 
@@ -82,6 +84,10 @@ app.post('/api/articles/:name/add-comment', (req, res) => {
         res.status(200).json(updatedArticleInfo);
     }, res);
 });
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname + '/build/index.html'));
+})
 
 app.listen(8000, () => console.log('Listening on port 8000'));
 
